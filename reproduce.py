@@ -7,35 +7,32 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+from project import ROOT, WORK, DATA, DATASETS, MODELS, configure, run_dir
 
-ROOT = Path(__file__).resolve().parent
-os.environ['UACR_ROOT'] = str(ROOT)
-os.environ['UACR_LEGACY_ROOT'] = str(ROOT/'legacy')
-os.environ.setdefault('TOKENIZERS_PARALLELISM','false')
+configure()
 os.environ.setdefault('PYTORCH_CUDA_ALLOC_CONF','expandable_segments:True')
 for path in ['script','eval','route_compare_test/scripts']:
     sys.path.insert(0,str(ROOT/path))
-MODELS={'qwen35_9b':'Qwen3.5-9B','qwen25vl_7b':'Qwen2.5-VL-7B-Instruct'}
-DATASETS=['goodsad_80p','mvtec_ad_80p','mvtec_loco_80p','visa_80p','ksdd2_mvtlike']
 p=argparse.ArgumentParser(description=__doc__)
 p.add_argument('stage',choices=['check','replay','train','infer','routes','summary'])
 p.add_argument('--model',choices=list(MODELS),default='qwen25vl_7b')
 p.add_argument('--dataset',choices=DATASETS,default='mvtec_ad_80p')
 p.add_argument('--split',choices=['val','test'],default='test')
 p.add_argument('--pixels',type=int,choices=[65536,147456],default=147456)
-p.add_argument('--adapter-root',type=Path,help='Explicit adapter root; inference default is archived aligned adapters')
+p.add_argument('--adapter-root',type=Path,help='Adapter root; default is this run\'s trained adapters')
 p.add_argument('--base',action='store_true',help='Unadapted base with the SAME row prompt and pixel budget')
 p.add_argument('--limit',type=int,default=0,help='Smoke only; must not be mixed with full predictions')
 p.add_argument('--datasets',nargs='+',choices=DATASETS,default=DATASETS)
 p.add_argument('--cache-root',type=Path)
-p.add_argument('--eff-scores',type=Path,help='Regenerated local score table; default is archived scores')
+p.add_argument('--eff-scores',type=Path,help='Local scores; default is the bundled fixed-detector reference table')
+p.add_argument('--base-cache-root',type=Path,help='Optional base prediction root: MODEL/DATASET/test/predictions.csv')
 p.add_argument('--saec-run',type=Path,help='Run directory containing regenerated route_compare_test/routes_cached/saec_mod')
 p.add_argument('--run',default='reproduction')
 p.add_argument('--dry-run',action='store_true')
 a=p.parse_args()
 if not a.run or Path(a.run).name!=a.run or a.run in ['.','..']:
     p.error('--run must be a single directory name')
-out=ROOT/'runs'/a.run
+out=run_dir(a.run)
 
 def command(args):
     import shlex
@@ -86,14 +83,12 @@ def summary():
         route.EFF_SCORES=Path(a.eff_scores or metadata['eff_scores'])
     eff=route.load_eff_scores()
     for dataset in datasets:
-        manifest=route.read_jsonl(ROOT/'data/three_field_qwen'/dataset/'test.jsonl')
+        manifest=route.read_jsonl(DATA/dataset/'test.jsonl')
         correct=sum(int(eff[(dataset,'test',r['id'])]['eff_pred'])==int(r['target']['label']=='abnormal') for r in manifest)
         rows.append({'method':'efficientad','model_key':'local','dataset':dataset,'n':len(manifest),'label_accuracy':correct/len(manifest),'qwen_rate':0})
         for model in MODELS:
-            base=out/'base_predictions'/model/dataset/'test/predictions.csv'
-            if metadata.get('archived_base',a.stage=='replay' and a.pixels==147456):
-                archives=json.loads((ROOT/'provenance/archives.json').read_text())
-                base=Path(archives['anomaly_detection2'])/'route_compare_test/base_qwen_three_field_current_prompt'/model/dataset/'predictions.csv'
+            base_root=Path(a.base_cache_root or metadata.get('base_cache_root') or out/'base_predictions')
+            base=base_root/model/dataset/'test/predictions.csv'
             if not base.exists():
                 continue
             with base.open() as f:
@@ -126,7 +121,7 @@ elif a.stage=='train':
     target=out/('smoke_adapters' if a.limit else 'adapters')/a.model/a.dataset
     if (target/'TRAINING_DONE').exists():
         raise SystemExit('Already complete; use a new --run for a separate experiment.')
-    args=[sys.executable,ROOT/'script/train_three_field_qwen_lora.py','--train-manifest',ROOT/'data/three_field_qwen'/a.dataset/'train.jsonl','--model',ROOT/'resources/model_qwen_base'/MODELS[a.model],'--output-dir',target,'--epochs',1,'--batch-size',2,'--grad-accum',4,'--learning-rate','2e-4','--max-pixels',147456,'--max-length',4096,'--max-samples',a.limit,'--normal-abnormal-ratio',3 if a.dataset=='visa_80p' else 2,'--label-loss-weight',10,'--defect-loss-weight',3,'--explanation-loss-weight',1,'--lora-r',8,'--lora-alpha',16,'--lora-dropout',0.05,'--seed',42,'--save-strategy','steps','--save-steps',100,'--save-total-limit',2,'--logging-steps',10]
+    args=[sys.executable,ROOT/'script/train_three_field_qwen_lora.py','--train-manifest',DATA/a.dataset/'train.jsonl','--model',WORK/'models/base'/MODELS[a.model],'--output-dir',target,'--epochs',1,'--batch-size',2,'--grad-accum',4,'--learning-rate','2e-4','--max-pixels',147456,'--max-length',4096,'--max-samples',a.limit,'--normal-abnormal-ratio',3 if a.dataset=='visa_80p' else 2,'--label-loss-weight',10,'--defect-loss-weight',3,'--explanation-loss-weight',1,'--lora-r',8,'--lora-alpha',16,'--lora-dropout',0.05,'--seed',42,'--save-strategy','steps','--save-steps',100,'--save-total-limit',2,'--logging-steps',10]
     checkpoints=sorted(target.glob('checkpoint-*'),key=lambda x:int(x.name.split('-')[-1]))
     if checkpoints:
         args+=['--resume-from-checkpoint',checkpoints[-1]]
@@ -138,10 +133,10 @@ elif a.stage=='infer':
     if a.limit:
         family='smoke_'+family
     target=out/family/a.model/a.dataset/a.split
-    args=[sys.executable,ROOT/'eval/eval_three_field_qwen.py','--data-root',ROOT/'data/three_field_qwen','--dataset',a.dataset,'--split',a.split,'--model',ROOT/'resources/model_qwen_base'/MODELS[a.model],'--out-dir',target,'--batch-size',4,'--max-new-tokens',180,'--max-pixels',a.pixels,'--prompt-source','row','--limit',a.limit]
+    args=[sys.executable,ROOT/'eval/eval_three_field_qwen.py','--data-root',DATA,'--dataset',a.dataset,'--split',a.split,'--model',WORK/'models/base'/MODELS[a.model],'--out-dir',target,'--batch-size',4,'--max-new-tokens',180,'--max-pixels',a.pixels,'--prompt-source','row','--limit',a.limit]
     adapter=None
     if not a.base:
-        adapter=(a.adapter_root or ROOT/f'resources/adapters_{a.pixels}')/a.model/('mvtec_ad_80p' if a.dataset=='ksdd2_mvtlike' else a.dataset)
+        adapter=(a.adapter_root or out/'adapters')/a.model/('mvtec_ad_80p' if a.dataset=='ksdd2_mvtlike' else a.dataset)
         args+=['--adapter',adapter]
     signature={'model':a.model,'dataset':a.dataset,'split':a.split,'pixels':a.pixels,'adapter':str(adapter),'limit':a.limit}
     config=target/'invocation.json'
@@ -152,7 +147,7 @@ elif a.stage=='infer':
         config.write_text(json.dumps(signature,indent=2))
     command(args)
 elif a.stage in ['replay','routes']:
-    cache=a.cache_root or (ROOT/f'resources/predictions_{a.pixels}' if a.stage=='replay' else out/'predictions')
+    cache=a.cache_root or out/'predictions'
     if a.dry_run:
         print('Cache:',cache,'Output:',out)
     else:
@@ -160,12 +155,12 @@ elif a.stage in ['replay','routes']:
         for model in MODELS:
             for dataset in a.datasets:
                 for split in ['val','test']:
-                    expected={json.loads(x)['id'] for x in (ROOT/'data/three_field_qwen'/dataset/f'{split}.jsonl').read_text().splitlines() if x.strip()}
+                    expected={json.loads(x)['id'] for x in (DATA/dataset/f'{split}.jsonl').read_text().splitlines() if x.strip()}
                     with (cache/model/dataset/split/'predictions.csv').open() as f:
                         actual=[r['id'] for r in csv.DictReader(f)]
                     if len(actual)!=len(set(actual)) or set(actual)!=expected:
                         raise RuntimeError(f'Incomplete or duplicate cache: {model}/{dataset}/{split}')
-        metadata={'cache_root':str(cache.resolve()),'eff_scores':str((a.eff_scores or ROOT/'data/splits/hybrid_unified_five/merged_val_test_scores.csv').resolve()),'saec_run':str(a.saec_run or ROOT),'datasets':a.datasets,'pixels':a.pixels,'archived_base':a.stage=='replay' and a.pixels==147456}
+        metadata={'cache_root':str(cache.resolve()),'eff_scores':str((a.eff_scores or WORK/'data/splits/hybrid_unified_five/merged_val_test_scores.csv').resolve()),'saec_run':str(a.saec_run or WORK),'datasets':a.datasets,'pixels':a.pixels,'base_cache_root':str((a.base_cache_root or out/'base_predictions').resolve())}
         out.mkdir(parents=True,exist_ok=True)
         record=out/'inputs.json'
         if record.exists() and json.loads(record.read_text())!=metadata:

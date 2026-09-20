@@ -107,7 +107,7 @@ def load_eff_scores() -> dict[tuple[str, str], dict[str, Any]]:
 def complexity_score(path: str, size: int = 192) -> float:
     im = cv2.imdecode(np.fromfile(path, dtype=np.uint8), cv2.IMREAD_COLOR)
     if im is None:
-        return 0.0
+        raise ValueError(f'Cannot decode image: {path}')
     im = cv2.resize(im, (size, size), interpolation=cv2.INTER_AREA)
     gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
     hist = cv2.calcHist([gray], [0], None, [256], [0, 256]).ravel()
@@ -140,7 +140,7 @@ def complexity_scores(dataset_key: str, split: str, rows: list[dict[str, Any]]) 
     if cache.exists():
         with cache.open(newline="", encoding="utf-8") as f:
             cached = {row["id"]: float(row["complexity_score"]) for row in csv.DictReader(f)}
-        if len(cached) == len(rows):
+        if set(cached) == {str(row['id']) for row in rows}:
             return cached
     out = {str(row["id"]): complexity_score(str(row["image"])) for row in rows}
     write_csv(cache, [{"id": key, "complexity_score": f"{value:.10f}"} for key, value in out.items()])

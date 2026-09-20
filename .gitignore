@@ -5,6 +5,8 @@ __pycache__/
 .env.*
 .secrets/
 resources/
+work/
+.pytest_cache/
 runs/
 *.log
 *.safetensors

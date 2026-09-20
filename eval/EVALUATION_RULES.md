@@ -3,7 +3,8 @@
 This document defines the evaluation protocol for the three-field anomaly-inspection Qwen data under:
 
 ```text
-/data/yuzheng/anomaly_detection2/data/three_field_qwen
+data/three_field_qwen/                 # portable versioned manifests
+work/data/three_field_qwen/            # prepared runtime manifests
 ```
 
 The goal is to evaluate whether a Qwen base model or Qwen LoRA adapter can:
@@ -226,33 +227,27 @@ The evaluator writes:
 Evaluate Qwen base on MVTec AD test:
 
 ```bash
-python /data/yuzheng/anomaly_detection2/eval/eval_three_field_qwen.py \
+python reproduce.py infer --base --model qwen35_9b --run experiment1 \
   --dataset mvtec_ad_80p \
   --split test \
-  --model /data/yuzheng/anomaly_detection2/model_qwen_base/Qwen3.5-9B \
-  --out-dir /data/yuzheng/anomaly_detection2/eval/outputs/base_mvtec_ad_test \
-  --batch-size 4
+  --pixels 147456
 ```
 
 Evaluate a LoRA adapter:
 
 ```bash
-python /data/yuzheng/anomaly_detection2/eval/eval_three_field_qwen.py \
+python reproduce.py infer --model qwen35_9b --run experiment1 \
   --dataset goodsad_80p \
   --split test \
-  --model /data/yuzheng/anomaly_detection2/model_qwen_base/Qwen3.5-9B \
-  --adapter /path/to/lora_adapter \
-  --out-dir /data/yuzheng/anomaly_detection2/eval/outputs/lora_goodsad_test \
-  --batch-size 4
+  --pixels 147456
 ```
 
 Run a small smoke test:
 
 ```bash
-python /data/yuzheng/anomaly_detection2/eval/eval_three_field_qwen.py \
+python reproduce.py infer --base --model qwen25vl_7b --run smoke \
   --dataset mvtec_loco_80p \
   --split val \
-  --out-dir /data/yuzheng/anomaly_detection2/eval/outputs/smoke_loco_val \
   --limit 20
 ```
 

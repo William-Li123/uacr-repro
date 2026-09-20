@@ -1,4 +1,4 @@
-"""Regenerate local detector weights/scores; never overwrite archived scores."""
+"""Train the local detector, calibrate on validation, and rebuild SAEC routes."""
 import argparse
 import csv
 import json
@@ -7,26 +7,23 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+from project import ROOT, WORK, DATA, DATASETS, configure, read_rows, run_dir
 
-ROOT=Path(__file__).resolve().parent
-os.environ['UACR_LEGACY_ROOT']=str(ROOT/'legacy')
+configure()
 sys.path.insert(0,str(ROOT/'legacy/scripts'))
-ARCHIVES=json.loads((ROOT/'provenance/archives.json').read_text())
-A=Path(ARCHIVES['anomaly_detection'])
-B=Path(ARCHIVES['anomaly_detection2'])
 p=argparse.ArgumentParser(description=__doc__)
 p.add_argument('stage',choices=['train','score','saec-routes'])
 p.add_argument('--dataset',required=True,choices=['goodsad_80p','mvtec_ad_80p','mvtec_loco_80p','visa_80p','ksdd2_mvtlike'])
 p.add_argument('--category',help='Train one category; omitted trains all categories')
 p.add_argument('--run',default='local_retrain')
-p.add_argument('--weights-root',type=Path,help='Default: archived EfficientAD weights')
+p.add_argument('--weights-root',type=Path,help='Default: this run\'s trained EfficientAD weights')
 p.add_argument('--dry-run',action='store_true')
 a=p.parse_args()
 if Path(a.run).name!=a.run or a.run in ['.','..']:
     p.error('Invalid run name')
-out=ROOT/'runs'/a.run
+out=run_dir(a.run)
 def rows(split):
-    return [json.loads(x) for x in (ROOT/'data/three_field_qwen'/a.dataset/f'{split}.jsonl').read_text().splitlines() if x.strip()]
+    return read_rows(DATA/a.dataset/f'{split}.jsonl')
 def write(path,items):
     path.parent.mkdir(parents=True,exist_ok=True)
     with path.open('w',newline='') as f:
@@ -34,7 +31,7 @@ def write(path,items):
 
 if a.stage=='train':
     import yaml
-    data=B/'data/data_adapters'/a.dataset
+    data=WORK/'data/data_adapters'/a.dataset
     if not data.exists():
         raise FileNotFoundError(data)
     categories=sorted({r['category'] for r in rows('val')})
@@ -44,15 +41,20 @@ if a.stage=='train':
         categories=[a.category]
     for cat in categories:
         target=out/'efficientad'/a.dataset/cat
-        config=yaml.safe_load((ROOT/'legacy/configs/efficientad_mvtlike_5001.yaml').read_text())
+        config=yaml.safe_load((ROOT/'configs/efficientad.yaml').read_text())
         config['Datasets']['train']['root']=str(data)
         config['Datasets']['eval']['root']=str(data)
+        config['Datasets']['imagenet']['root']=str(WORK/'raw/imagenette2-320/train')
+        config['Model']['checkpoints']=str(WORK/'models/teacher/best_teacher.pth')
         config['category']=cat
         config['ckpt_dir']=str(target)
         cfg=out/'configs'/f'{a.dataset}_{cat}.yaml'
         args=[sys.executable,str(ROOT/'legacy/tools/EfficientAD/train_reduced_student.py'),'-c',str(cfg)]
         print(args,flush=True)
         if a.dry_run:
+            continue
+        if (target/'TRAINING_DONE').is_file():
+            print(f'Already complete: {target}')
             continue
         if target.exists() and any(target.iterdir()):
             raise RuntimeError(f'Output exists: {target}; use another --run')
@@ -68,15 +70,31 @@ if a.stage=='train':
             if not last.exists():
                 raise FileNotFoundError(last)
             shutil.copy2(last,target/f'{cat}_{suffix}')
+        (target/'TRAINING_DONE').write_text('done\n')
 elif a.stage=='score':
+    if a.dry_run:
+        print(f'Score {a.dataset} using {a.weights_root or out/"efficientad"}')
+        raise SystemExit(0)
     import numpy as np
     import torch
     from PIL import Image
     from torchvision import transforms
     from analyze_efficientad_mvtlike import EfficientADInference
-    from run_unified_hybrid_five import best_threshold
+    from sklearn.metrics import balanced_accuracy_score
+    def best_threshold(labels, scores):
+        best=None
+        for threshold in np.unique(scores):
+            pred=scores>=threshold
+            acc=float((pred==labels).mean())
+            bal=float(balanced_accuracy_score(labels,pred)) if len(np.unique(labels))>1 else acc
+            rank=(bal,acc,bal)
+            if best is None or rank>best[0]:
+                best=(rank,float(threshold))
+        if best is None:
+            raise ValueError('Cannot calibrate an empty category')
+        return best[1]
     key='ksdd2' if a.dataset=='ksdd2_mvtlike' else a.dataset
-    weights=(a.weights_root/a.dataset if a.weights_root else ROOT/'resources/model_efficient_AD'/key)
+    weights=(a.weights_root or out/'efficientad')/a.dataset
     transform=transforms.Compose([transforms.Resize((256,256)),transforms.ToTensor()])
     items=[]
     manifests={split:rows(split) for split in ['val','test']}
@@ -108,12 +126,16 @@ elif a.stage=='score':
     write(out/'merged_val_test_scores.csv',combined)
     print(out/'merged_val_test_scores.csv')
 elif a.stage=='saec-routes':
+    if a.dry_run:
+        print(f'Rebuild SAEC routes for {a.dataset}')
+        raise SystemExit(0)
     import numpy as np
     sys.path.insert(0,str(ROOT/'route_compare_test/scripts'))
-    os.environ['UACR_ROOT']=str(ROOT)
     import prepare_cached_baseline_routes as s
     s.OUT_ROOT=out/'route_compare_test'
-    s.YOLO_WEIGHTS=B/'route_compare_test/yolo_weights/yolo11s-cls.pt'
+    s.YOLO_WEIGHTS=WORK/'models/saec/yolo11s-cls.pt'
+    if not s.YOLO_WEIGHTS.is_file():
+        raise FileNotFoundError('Run python download_resources.py --resource yolo first')
     test=rows('test')
     values=s.complexity_scores(a.dataset,'test',test)
     threshold=float(np.quantile(list(values.values()),.7))

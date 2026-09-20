@@ -1,110 +1,104 @@
-"""Extract the reproducible core without modifying either source archive."""
+"""Prepare the fixed experiment splits from publicly downloaded datasets."""
 import argparse
 import hashlib
 import json
+import os
+from pathlib import Path, PurePosixPath
 import shutil
-from pathlib import Path
+from project import ROOT, WORK, DATA, DATASETS, read_rows
 
-p = argparse.ArgumentParser()
-p.add_argument('--archive-parent', default='/mnt/aoss-250010161/cloudplatform/models')
-p.add_argument('--dest', default='/data/yuzheng/uacr_repro')
-a = p.parse_args()
-dest = Path(a.dest)
-if dest.exists():
-    raise SystemExit(f'Refusing to overwrite existing project: {dest}')
-dest.mkdir(parents=True)
-roots = {n: Path(a.archive_parent)/n/'archive_20260903_full' for n in ['anomaly_detection', 'anomaly_detection2']}
-links = {}
-for name, root in roots.items():
-    for line in (root.parent/'archive_20260903_full.symlinks.tsv').read_text().splitlines():
-        rel, target = line.split('\t', 1)
-        links[f'/data/yuzheng/{name}/{rel}'] = target
+def resolve_image(raw, relative):
+    part = PurePosixPath(relative)
+    if part.is_absolute() or '..' in part.parts or not part.parts:
+        raise ValueError(f'Unsafe dataset path: {relative}')
+    path = raw.joinpath(*part.parts)
+    if not path.is_file():
+        raise FileNotFoundError(f'Missing image: {path}. See docs/DATASETS.md for extraction layout.')
+    return path.resolve()
 
-def resolve(value, seen=None):
-    seen = set() if seen is None else seen
-    if value in seen:
-        raise ValueError(f'Circular archived link: {value}')
-    seen.add(value)
-    if value in links:
-        target = links[value]
-        if not target.startswith('/'):
-            target = str(Path(value).parent/target)
-        return resolve(target, seen)
-    for name in ['anomaly_detection2', 'anomaly_detection']:
-        prefix = f'/data/yuzheng/{name}/'
-        if value.startswith(prefix):
-            return str(roots[name]/value[len(prefix):])
-    return value
-
-provenance = []
-def copy_code(name, rel, out=None):
-    src = roots[name]/rel
-    target = dest/(out or rel)
+def put_link(source, target, copy=False):
     target.parent.mkdir(parents=True, exist_ok=True)
-    raw = src.read_bytes()
-    text = raw.decode('utf-8-sig')
-    text = text.replace('Path("/data/yuzheng/anomaly_detection2")', 'Path(__import__("os").environ["UACR_ROOT"])')
-    text = text.replace('Path("/data/yuzheng/anomaly_detection")', 'Path(__import__("os").environ["UACR_LEGACY_ROOT"])')
-    if rel == 'script/evaluate_saec_same_new_adapter.py':
-        text = text.replace('ROOT / "pixel_alignment_acp" / "predictions_147456"', 'Path(__import__("os").environ["UACR_PREDICTIONS"])')
-        text = text.replace('ROOT / "pixel_alignment_acp" / "saec_same_new_adapter"', 'Path(__import__("os").environ["UACR_SAEC_OUTPUT"])')
-    target.write_text(text, encoding='utf-8')
-    provenance.append({'source':str(src),'output':str(target.relative_to(dest)), 'source_sha256':hashlib.sha256(raw).hexdigest(), 'output_sha256':hashlib.sha256(target.read_bytes()).hexdigest()})
+    if target.exists() or target.is_symlink():
+        if target.is_symlink() and target.resolve() == source:
+            return
+        if target.is_file() and os.path.samefile(source, target):
+            return
+        if target.is_file() and hashlib.sha256(target.read_bytes()).digest() == hashlib.sha256(source.read_bytes()).digest():
+            return
+        raise FileExistsError(f'Refusing to overwrite: {target}')
+    if copy:
+        shutil.copy2(source, target)
+    else:
+        try:
+            target.symlink_to(source)
+        except OSError:
+            shutil.copy2(source, target)
 
-for rel in ['script/train_three_field_qwen_lora.py', 'script/build_three_field_qwen_data.py', 'script/evaluate_pixel_variant_routes.py', 'script/evaluate_saec_same_new_adapter.py', 'eval/eval_three_field_qwen.py', 'eval/EVALUATION_RULES.md']:
-    copy_code('anomaly_detection2', rel)
-for name in ['tune_per_dataset_q_20260630.py','compare_random50_saec_ours_20260630.py','prepare_cached_baseline_routes.py']:
-    copy_code('anomaly_detection2', 'route_compare_test/scripts/'+name)
-for src in (roots['anomaly_detection']/'tools/EfficientAD').glob('*.py'):
-    copy_code('anomaly_detection', str(src.relative_to(roots['anomaly_detection'])), 'legacy/tools/EfficientAD/'+src.name)
-copy_code('anomaly_detection','tools/EfficientAD/requirements.txt','legacy/tools/EfficientAD/requirements.txt')
-copy_code('anomaly_detection','scripts/analyze_efficientad_mvtlike.py','legacy/scripts/analyze_efficientad_mvtlike.py')
-copy_code('anomaly_detection','scripts/run_unified_hybrid_five.py','legacy/scripts/run_unified_hybrid_five.py')
-for src in (roots['anomaly_detection']/'configs').glob('efficientad*.yaml'):
-    target = dest/'legacy/configs'/src.name
-    target.parent.mkdir(parents=True,exist_ok=True)
-    text = src.read_text().replace('/data/yuzheng/anomaly_detection',str(roots['anomaly_detection']))
-    target.write_text(text)
+def main():
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument('--raw-root', type=Path, default=WORK/'raw')
+    p.add_argument('--datasets', nargs='+', choices=DATASETS, default=DATASETS)
+    p.add_argument('--copy', action='store_true', help='Copy detector images instead of linking')
+    p.add_argument('--check-only', action='store_true')
+    args = p.parse_args()
+    raw = args.raw_root.expanduser().resolve()
+    counts, prepared, checksums = {}, {}, {}
+    resolved = {}
+    def image_path(relative):
+        if relative not in resolved:
+            resolved[relative] = str(resolve_image(raw, relative))
+        return resolved[relative]
+    for dataset in args.datasets:
+        images = {}
+        for split in ['train', 'val', 'test']:
+            template = ROOT/'data/three_field_qwen'/dataset/f'{split}.jsonl'
+            rows = read_rows(template)
+            ids = [row['id'] for row in rows]
+            if len(ids) != len(set(ids)):
+                raise ValueError(f'Duplicate IDs: {dataset}/{split}')
+            for row in rows:
+                row['image'] = image_path(row['image'])
+                row['ref_images'] = [image_path(x) for x in row.get('ref_images', [])]
+            images[split] = {r['image'] for r in rows}
+            prepared[(dataset, split)] = rows
+            counts[f'{dataset}/{split}'] = len(rows)
+            checksums[f'{dataset}/{split}'] = hashlib.sha256(template.read_bytes()).hexdigest()
+            print(f'Checked {dataset}/{split}: {len(rows)} samples', flush=True)
+        for left, right in [('train','val'), ('train','test'), ('val','test')]:
+            if images[left] & images[right]:
+                raise ValueError(f'Query overlap: {dataset} {left}/{right}')
+    if args.check_only:
+        print(json.dumps({'counts':counts, 'status':'all paths and splits checked'}, indent=2))
+        return
+    record = WORK/'prepared.json'
+    signature = {'raw_root':str(raw), 'datasets':args.datasets, 'manifest_sha256':checksums}
+    if record.exists() and json.loads(record.read_text()) != signature:
+        raise RuntimeError('Prepared configuration changed. Use a new UACR_WORKDIR.')
+    for (dataset, split), rows in prepared.items():
+        output = DATA/dataset/f'{split}.jsonl'
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(''.join(json.dumps(r, ensure_ascii=False)+'\n' for r in rows), encoding='utf-8')
+        # The local trainer sees normal training queries and validation queries only.
+        if split in ['train', 'val']:
+            for row in rows:
+                normal = row['target']['label'] == 'normal'
+                if split == 'train' and not normal:
+                    continue
+                source = Path(row['image'])
+                if Path(row['id']).name != row['id'] or Path(row['category']).name != row['category']:
+                    raise ValueError('Unsafe sample ID or category')
+                branch = 'train' if split == 'train' else 'test'
+                target = WORK/'data/data_adapters'/dataset/row['category']/branch/('good' if normal else 'defect')/(row['id']+source.suffix)
+                put_link(source, target, args.copy)
+    score = WORK/'data/splits/hybrid_unified_five/merged_val_test_scores.csv'
+    score.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(ROOT/'data/splits/hybrid_unified_five/merged_val_test_scores.csv', score)
+    masks = WORK/'route_compare_test/routes_cached/saec_mod'
+    masks.mkdir(parents=True, exist_ok=True)
+    for dataset in args.datasets:
+        shutil.copy2(ROOT/'route_compare_test/routes_cached/saec_mod'/f'{dataset}.csv', masks/f'{dataset}.csv')
+    record.write_text(json.dumps(signature, indent=2))
+    print(json.dumps({'work_dir':str(WORK), 'counts':counts}, indent=2))
 
-def link(src, target):
-    target.parent.mkdir(parents=True,exist_ok=True)
-    target.symlink_to(src, target_is_directory=Path(src).is_dir())
-
-for rel in ['model_qwen_base','model_efficient_AD']:
-    link(roots['anomaly_detection2']/rel,dest/'resources'/rel)
-link(roots['anomaly_detection2']/'model_qwen_adapter/sft_lora_px147456', dest/'resources/adapters_147456')
-link(roots['anomaly_detection2']/'model_qwen_adapter/sft_lora', dest/'resources/adapters_65536')
-link(roots['anomaly_detection2']/'pixel_alignment_acp/predictions_147456', dest/'resources/predictions_147456')
-link(roots['anomaly_detection2']/'pixel_alignment_acp/predictions_65536', dest/'resources/predictions_65536')
-link(roots['anomaly_detection2']/'pixel_alignment_acp/routes_147456', dest/'resources/reference_routes_147456')
-link(roots['anomaly_detection2']/'pixel_alignment_acp/saec_same_new_adapter',dest/'resources/reference_saec')
-
-counts = {}
-for src in (roots['anomaly_detection2']/'data/three_field_qwen').glob('*/*.jsonl'):
-    target = dest/'data/three_field_qwen'/src.parent.name/src.name
-    target.parent.mkdir(parents=True,exist_ok=True)
-    rows = [json.loads(x) for x in src.read_text().splitlines() if x.strip()]
-    for row in rows:
-        row['image'] = resolve(row['image'])
-        row['ref_images'] = [resolve(x) for x in row.get('ref_images',[])]
-    target.write_text(''.join(json.dumps(x,ensure_ascii=False)+'\n' for x in rows),encoding='utf-8')
-    counts[str(target.relative_to(dest))] = len(rows)
-for rel in ['data/splits/hybrid_unified_five/merged_val_test_scores.csv']:
-    target = dest/rel
-    target.parent.mkdir(parents=True,exist_ok=True)
-    shutil.copy2(roots['anomaly_detection2']/rel,target)
-shutil.copytree(roots['anomaly_detection2']/'route_compare_test/routes_cached/saec_mod',dest/'route_compare_test/routes_cached/saec_mod')
-
-# Materialize only image links for the preserved EfficientAD training layout.
-prefix='/data/yuzheng/anomaly_detection2/data/data_adapters/'
-for old in links:
-    if old.startswith(prefix):
-        link(resolve(old),dest/'data/data_adapters'/old[len(prefix):])
-(dest/'provenance').mkdir()
-(dest/'provenance/source_files.json').write_text(json.dumps(provenance,indent=2))
-(dest/'provenance/manifest_counts.json').write_text(json.dumps(counts,indent=2))
-(dest/'provenance/archives.json').write_text(json.dumps({k:str(v) for k,v in roots.items()},indent=2))
-for name in ['reproduce.py','README.md','checks.py','local_detector.py','environment.py','verify_replay.py','smoke_local.py','run_all.sh','开始复现.md']:
-    shutil.copy2(Path(__file__).with_name(name),dest/name)
-shutil.copy2(__file__,dest/'bootstrap.py')
-print(json.dumps({'project':str(dest),'source_files':len(provenance),'manifests':counts},indent=2))
+if __name__ == '__main__':
+    main()
