@@ -1,0 +1,11 @@
+{
+  "id": "test_mvtec_ad_bottle_broken_large_original_test_anomaly_50p_test_006",
+  "score": 0.8740012049674988,
+  "archived_score": 0.8741927146911621,
+  "abs_difference": 0.00019150972366333008,
+  "device": "cuda",
+  "finite_forward": true,
+  "score_matches_at_1e_4": false,
+  "decision_matches": true,
+  "threshold": 0.2827864289283752
+}

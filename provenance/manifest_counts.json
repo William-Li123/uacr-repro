@@ -1,0 +1,17 @@
+{
+  "data/three_field_qwen/goodsad_80p/test.jsonl": 1673,
+  "data/three_field_qwen/goodsad_80p/train.jsonl": 3337,
+  "data/three_field_qwen/goodsad_80p/val.jsonl": 1114,
+  "data/three_field_qwen/ksdd2_mvtlike/test.jsonl": 602,
+  "data/three_field_qwen/ksdd2_mvtlike/train.jsonl": 2087,
+  "data/three_field_qwen/ksdd2_mvtlike/val.jsonl": 402,
+  "data/three_field_qwen/mvtec_ad_80p/test.jsonl": 1090,
+  "data/three_field_qwen/mvtec_ad_80p/train.jsonl": 3532,
+  "data/three_field_qwen/mvtec_ad_80p/val.jsonl": 732,
+  "data/three_field_qwen/mvtec_loco_80p/test.jsonl": 895,
+  "data/three_field_qwen/mvtec_loco_80p/train.jsonl": 2162,
+  "data/three_field_qwen/mvtec_loco_80p/val.jsonl": 594,
+  "data/three_field_qwen/visa_80p/test.jsonl": 2016,
+  "data/three_field_qwen/visa_80p/train.jsonl": 7506,
+  "data/three_field_qwen/visa_80p/val.jsonl": 1299
+}

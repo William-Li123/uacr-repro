@@ -1,0 +1,122 @@
+[
+  {
+    "source": "/mnt/aoss-250010161/cloudplatform/models/anomaly_detection2/archive_20260903_full/script/train_three_field_qwen_lora.py",
+    "output": "script/train_three_field_qwen_lora.py",
+    "source_sha256": "89bff40fd6a3e390e3dc5f1a55891ef711c1c9eb2594c59665f5603dca3867e3",
+    "output_sha256": "89bff40fd6a3e390e3dc5f1a55891ef711c1c9eb2594c59665f5603dca3867e3"
+  },
+  {
+    "source": "/mnt/aoss-250010161/cloudplatform/models/anomaly_detection2/archive_20260903_full/script/build_three_field_qwen_data.py",
+    "output": "script/build_three_field_qwen_data.py",
+    "source_sha256": "e92edf36e22ebf30aada18209fa5d037a5a97be5d367c300400027ad2ecfa2f2",
+    "output_sha256": "4faa9eeec6664c192fac81cdfd7759df65ff7cb4ae17e92dea998a05c3a27a1b"
+  },
+  {
+    "source": "/mnt/aoss-250010161/cloudplatform/models/anomaly_detection2/archive_20260903_full/script/evaluate_pixel_variant_routes.py",
+    "output": "script/evaluate_pixel_variant_routes.py",
+    "source_sha256": "1a2f94c4dcb9b15f19a289c9e3fe1755be83d947d2a72ff63d580836cf0060e2",
+    "output_sha256": "788a10e2ec56906223c14fb953424d78f2f40b4e888943b8e85c60b0f80b10e9"
+  },
+  {
+    "source": "/mnt/aoss-250010161/cloudplatform/models/anomaly_detection2/archive_20260903_full/script/evaluate_saec_same_new_adapter.py",
+    "output": "script/evaluate_saec_same_new_adapter.py",
+    "source_sha256": "77c6a77ef5144d81f7676b228c027b8416a8547eaed24ab4359dce30139bdee1",
+    "output_sha256": "69cee02be22892289aad60725c2f56eec91a5a0a8cec0cde0fe7865e944a3ace"
+  },
+  {
+    "source": "/mnt/aoss-250010161/cloudplatform/models/anomaly_detection2/archive_20260903_full/eval/eval_three_field_qwen.py",
+    "output": "eval/eval_three_field_qwen.py",
+    "source_sha256": "bc5720c57c98674f7be031b7a23e2269c3bcf6ec96c748bddc4bf22609fe2f2f",
+    "output_sha256": "8e64a11557dadb06120acb7a4c97a2d6ebda959146950f04e0c500c7d496d694"
+  },
+  {
+    "source": "/mnt/aoss-250010161/cloudplatform/models/anomaly_detection2/archive_20260903_full/eval/EVALUATION_RULES.md",
+    "output": "eval/EVALUATION_RULES.md",
+    "source_sha256": "3106ca6de49f780570ce7e68a51f310080e5ec9b3c9499456b618b53a4cbc689",
+    "output_sha256": "3106ca6de49f780570ce7e68a51f310080e5ec9b3c9499456b618b53a4cbc689"
+  },
+  {
+    "source": "/mnt/aoss-250010161/cloudplatform/models/anomaly_detection2/archive_20260903_full/route_compare_test/scripts/tune_per_dataset_q_20260630.py",
+    "output": "route_compare_test/scripts/tune_per_dataset_q_20260630.py",
+    "source_sha256": "72b3080bca0402da28e4b324e8518b4700d5a8c51a24b78bccc05696ddd7e024",
+    "output_sha256": "cee2541437084312307ae9f61d0a89132d0be7f8ba39f3f5e24dd0e6d6172a92"
+  },
+  {
+    "source": "/mnt/aoss-250010161/cloudplatform/models/anomaly_detection2/archive_20260903_full/route_compare_test/scripts/compare_random50_saec_ours_20260630.py",
+    "output": "route_compare_test/scripts/compare_random50_saec_ours_20260630.py",
+    "source_sha256": "b6722b1488488b010f27688b2b6dd33b5a724709ceb17a9567e4efa7049f6274",
+    "output_sha256": "8b5b9b5b160f219b8e11f52bab2d63559e0d8a157951dbfc13aa0bf7112aad2c"
+  },
+  {
+    "source": "/mnt/aoss-250010161/cloudplatform/models/anomaly_detection2/archive_20260903_full/route_compare_test/scripts/prepare_cached_baseline_routes.py",
+    "output": "route_compare_test/scripts/prepare_cached_baseline_routes.py",
+    "source_sha256": "2bb7ec43f742ea2e73de13f1ff8b08a550818cee1d37df1c48634a4189bf8a0b",
+    "output_sha256": "b11798c47078ca5ea6479e2d38a423b4179bc7cf137d4d14a4f0741568eae08a"
+  },
+  {
+    "source": "/mnt/aoss-250010161/cloudplatform/models/anomaly_detection/archive_20260903_full/tools/EfficientAD/data_loader.py",
+    "output": "legacy/tools/EfficientAD/data_loader.py",
+    "source_sha256": "f676524d43479479acd24a1448b40037bf6a35f447bf760b034f39dd316cc92e",
+    "output_sha256": "f676524d43479479acd24a1448b40037bf6a35f447bf760b034f39dd316cc92e"
+  },
+  {
+    "source": "/mnt/aoss-250010161/cloudplatform/models/anomaly_detection/archive_20260903_full/tools/EfficientAD/distillation_training.py",
+    "output": "legacy/tools/EfficientAD/distillation_training.py",
+    "source_sha256": "244712be6483651ded647f6b77ea082dfbdedfc07c826c9e13539a6d96586b13",
+    "output_sha256": "244712be6483651ded647f6b77ea082dfbdedfc07c826c9e13539a6d96586b13"
+  },
+  {
+    "source": "/mnt/aoss-250010161/cloudplatform/models/anomaly_detection/archive_20260903_full/tools/EfficientAD/eval.py",
+    "output": "legacy/tools/EfficientAD/eval.py",
+    "source_sha256": "5a437e0a26a40d9d300cfe617ca70c2b1524010131240fa5975ec536812317bb",
+    "output_sha256": "5a437e0a26a40d9d300cfe617ca70c2b1524010131240fa5975ec536812317bb"
+  },
+  {
+    "source": "/mnt/aoss-250010161/cloudplatform/models/anomaly_detection/archive_20260903_full/tools/EfficientAD/eval_all_mvtec_catgory.py",
+    "output": "legacy/tools/EfficientAD/eval_all_mvtec_catgory.py",
+    "source_sha256": "e5e6bb61390abbb3433d2182596653424034cad5ead80fd146b488f5750ae87d",
+    "output_sha256": "e5e6bb61390abbb3433d2182596653424034cad5ead80fd146b488f5750ae87d"
+  },
+  {
+    "source": "/mnt/aoss-250010161/cloudplatform/models/anomaly_detection/archive_20260903_full/tools/EfficientAD/models.py",
+    "output": "legacy/tools/EfficientAD/models.py",
+    "source_sha256": "9b365dc507b50873acd6699566e0786d80929413ff5160017cd5fc2853c532f0",
+    "output_sha256": "9b365dc507b50873acd6699566e0786d80929413ff5160017cd5fc2853c532f0"
+  },
+  {
+    "source": "/mnt/aoss-250010161/cloudplatform/models/anomaly_detection/archive_20260903_full/tools/EfficientAD/test_datasets.py",
+    "output": "legacy/tools/EfficientAD/test_datasets.py",
+    "source_sha256": "67733cd905c9ef023e9c3eeca013f262b875497580120345b667b9669bcab4fd",
+    "output_sha256": "67733cd905c9ef023e9c3eeca013f262b875497580120345b667b9669bcab4fd"
+  },
+  {
+    "source": "/mnt/aoss-250010161/cloudplatform/models/anomaly_detection/archive_20260903_full/tools/EfficientAD/train_all_mvtec_category.py",
+    "output": "legacy/tools/EfficientAD/train_all_mvtec_category.py",
+    "source_sha256": "ac13235659ab8ae8897d21d4b665c2535f074c784bccf0d9cc2be20f6b308651",
+    "output_sha256": "ac13235659ab8ae8897d21d4b665c2535f074c784bccf0d9cc2be20f6b308651"
+  },
+  {
+    "source": "/mnt/aoss-250010161/cloudplatform/models/anomaly_detection/archive_20260903_full/tools/EfficientAD/train_reduced_student.py",
+    "output": "legacy/tools/EfficientAD/train_reduced_student.py",
+    "source_sha256": "4e2e528f417302606fa3f09c47100850c9a4c56c7f28363f732592e7717d77c0",
+    "output_sha256": "4e2e528f417302606fa3f09c47100850c9a4c56c7f28363f732592e7717d77c0"
+  },
+  {
+    "source": "/mnt/aoss-250010161/cloudplatform/models/anomaly_detection/archive_20260903_full/tools/EfficientAD/requirements.txt",
+    "output": "legacy/tools/EfficientAD/requirements.txt",
+    "source_sha256": "640159f2f39e6fccc6a3d13a5608ab50204dce3145f81462f9be2bb8af9b86db",
+    "output_sha256": "640159f2f39e6fccc6a3d13a5608ab50204dce3145f81462f9be2bb8af9b86db"
+  },
+  {
+    "source": "/mnt/aoss-250010161/cloudplatform/models/anomaly_detection/archive_20260903_full/scripts/analyze_efficientad_mvtlike.py",
+    "output": "legacy/scripts/analyze_efficientad_mvtlike.py",
+    "source_sha256": "96a6e102cd1529240629e0f1a7fdcd9d673d244dd47eed90a67e3f716b62e5b9",
+    "output_sha256": "0280c007686a263a461211351d3a7a658f271f7c219ee683dd89e5b3290fa896"
+  },
+  {
+    "source": "/mnt/aoss-250010161/cloudplatform/models/anomaly_detection/archive_20260903_full/scripts/run_unified_hybrid_five.py",
+    "output": "legacy/scripts/run_unified_hybrid_five.py",
+    "source_sha256": "402833cadd8de56dedd22cb059d8d11cbb241eab1e2669e9ce4e153859ef6a31",
+    "output_sha256": "05424be1b1290e16e3a2d3c52b9d7d66e1fb42d5c7623e69e639a31e576ef398"
+  }
+]

@@ -1,0 +1,20 @@
+{
+  "manifest_counts": {
+    "goodsad_80p/test": 1673,
+    "goodsad_80p/train": 3337,
+    "goodsad_80p/val": 1114,
+    "ksdd2_mvtlike/test": 602,
+    "ksdd2_mvtlike/train": 2087,
+    "ksdd2_mvtlike/val": 402,
+    "mvtec_ad_80p/test": 1090,
+    "mvtec_ad_80p/train": 3532,
+    "mvtec_ad_80p/val": 732,
+    "mvtec_loco_80p/test": 895,
+    "mvtec_loco_80p/train": 2162,
+    "mvtec_loco_80p/val": 594,
+    "visa_80p/test": 2016,
+    "visa_80p/train": 7506,
+    "visa_80p/val": 1299
+  },
+  "errors": []
+}

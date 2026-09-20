@@ -1,0 +1,32 @@
+[
+  {
+    "method": "uacr",
+    "rows": 12,
+    "fields": [
+      "n",
+      "label_accuracy",
+      "defect_type_exact_abnormal",
+      "defect_type_hit_pred_abnormal",
+      "explanation_keyword_hit_abnormal",
+      "qwen_rate",
+      "qwen_called"
+    ],
+    "status": "MATCH",
+    "tolerance": 1e-12
+  },
+  {
+    "method": "saec",
+    "rows": 10,
+    "fields": [
+      "n",
+      "label_accuracy",
+      "defect_type_exact_abnormal",
+      "defect_type_hit_pred_abnormal",
+      "explanation_keyword_hit_abnormal",
+      "qwen_rate",
+      "qwen_called"
+    ],
+    "status": "MATCH",
+    "tolerance": 1e-12
+  }
+]
